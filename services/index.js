@@ -1,5 +1,6 @@
 const Room = require('../schemas/room');
 const Chat = require('../schemas/chat');
+const SystemChatLog = require('../schemas/systemChatLog');
 
 exports.removeRoom = async (roomId) => {
     try {
@@ -9,3 +10,14 @@ exports.removeRoom = async (roomId) => {
         throw error;
     }
 };
+
+exports.createSystemChatLog = async (roomId, log) => {
+    try {
+        await SystemChatLog.create({
+            room: roomId,
+            log: log,
+        });
+    } catch (error) {
+        throw error;
+    }
+}

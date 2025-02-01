@@ -1,5 +1,6 @@
 const SocketIO = require('socket.io');
 const { removeRoom } = require('./services');
+const { createSystemChatLog } = require('./services');
 
 module.exports = (server, app, sessionMiddleware) => {
     const io = SocketIO(server, { path: '/socket.io' });
@@ -23,17 +24,20 @@ module.exports = (server, app, sessionMiddleware) => {
         const roomId = new URL(referer).pathname.split('/').at(-1);
         console.log(roomId);
     
-        socket.on('join', (data) => {
+        socket.on('join', async (data) => {
             console.log(data);  //data와 roomId가 같음
             socket.join(data);
 
             //join 이후에 실행해야만 인원수등을 제대로 가져올 수 있음 (갱신)
             const currentRoom = chat.adapter.rooms.get(roomId);
             const userCount = currentRoom?.size || 0;
+            const systemLog = `${socket.request.session.color}님이 입장하셨습니다. 현재 인원: ${userCount}`;
+
+            await createSystemChatLog(roomId, systemLog);
 
             socket.to(data).emit('join', {
                 user: 'system',
-                chat: `${socket.request.session.color}님이 입장하셨습니다. 현재 인원: ${userCount}`,
+                chat: systemLog,
             });
 
             // 메인 페이지(/room 네임스페이스)에 'updateCount' 이벤트로 알리기
@@ -62,6 +66,15 @@ module.exports = (server, app, sessionMiddleware) => {
                 // 클라이언트 콜백에 "success: true" 전달
                 done({ success: true });
             } else {
+                const systemLog = `${socket.request.session.color}님이 퇴장하셨습니다. 현재 인원: ${userCount}`;
+                
+                await createSystemChatLog(roomId, systemLog);
+
+                socket.to(roomId).emit('exit', {
+                    user: 'system',
+                    chat: systemLog,
+                });
+
                 chat.emit('updateCount', { roomId, occupantCount: userCount });
                 done({ success: false });
             }
@@ -76,11 +89,6 @@ module.exports = (server, app, sessionMiddleware) => {
                 await removeRoom(roomId);
                 room.emit('removeRoom', roomId);
                 console.log('방 제거 요청 성공');
-            } else {
-                socket.to(roomId).emit('exit', {
-                    user: 'system',
-                    chat: `${socket.request.session.color}님이 퇴장하셨습니다. 현재 인원: ${userCount}`,
-                });
             }
         });
     });
