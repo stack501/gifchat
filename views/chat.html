@@ -1,141 +1,199 @@
 {% extends 'layout.html' %}
 
 {% block content %}
-  <!-- <h1>{{title}}</h1> -->
-  <h1 id="room-title"></h1>
-  <!-- "방 나가기" 링크 -> 버튼으로 쓰거나, a태그라도 e.preventDefault()로 새로고침 방지 -->
-  <a href="/" id="exit-btn">방 나가기</a>
-  <fieldset>
-    <legend>채팅 내용</legend>
-    <div id="chat-list">
-      {% for chat in chats %}
-        {% if chat.user === user %}
-          <div class="mine" style="color: {{chat.user}}">
-            <div>{{chat.user}}</div>
-            {% if chat.gif %}}
-              <img src="/gif/{{chat.gif}}">
-            {% else %}
+<style>
+  /* 간단한 레이아웃 분리 예시 (Flexbox) */
+  #chat-container {
+    display: flex;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  #chat-section {
+    flex: 1; /* 채팅 창은 가로 공간 대부분 차지 */
+    margin-right: 10px;
+  }
+  #user-list-section {
+    width: 200px; /* 오른쪽에 고정 너비 */
+    border-left: 1px solid #ccc;
+    padding-left: 10px;
+  }
+  #user-list-section h3 {
+    margin-top: 0;
+  }
+  #user-list {
+    list-style: none;
+    padding-left: 0;
+  }
+  #user-list li {
+    margin-bottom: 5px;
+  }
+</style>
+
+<h1 id="room-title"></h1>
+<a href="/" id="exit-btn">방 나가기</a>
+
+<div id="chat-container">
+  <!-- 채팅 영역 -->
+  <div id="chat-section">
+    <fieldset>
+      <legend>채팅 내용</legend>
+      <div id="chat-list">
+        {% for chat in chats %}
+          {% if chat.user === user %}
+            <div class="mine" style="color: {{chat.user}}">
+              <div>{{chat.user}}</div>
+              {% if chat.gif %}
+                <img src="/gif/{{chat.gif}}">
+              {% else %}
+                <div>{{chat.chat}}</div>
+              {% endif %}
+            </div>
+          {% elif chat.user === 'system' %}
+            <div class="system">
               <div>{{chat.chat}}</div>
-            {% endif %}
-          </div>
-        {% elif chat.user === 'system' %}
-          <div class="system">
-            <div>{{chat.chat}}</div>
-          </div>
-        {% else %}
-          <div class="other" style="color: {{chat.user}}">
-            <div>{{chat.user}}</div>
-            {% if chat.gif %}
-              <img src="/gif/{{chat.gif}}">
-            {% else %}
-              <div>{{chat.chat}}</div>
-            {% endif %}
-          </div>
-        {% endif %}
-      {% endfor %}
-    </div>
-  </fieldset>
-  <form action="/chat" id="chat-form" method="post" enctype="multipart/form-data">
-    <label for="gif">GIF 올리기</label>
-    <input type="file" id="gif" name="gif" accept="image/gif">
-    <input type="text" id="chat" name="chat">
-    <button type="submit">전송</button>
-  </form>
-  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
-  <script src="/socket.io/socket.io.js"></script>
-  <script>
-    const socket = io.connect('http://localhost:8005/chat', {
-      path: '/socket.io',
+            </div>
+          {% else %}
+            <div class="other" style="color: {{chat.user}}">
+              <div>{{chat.user}}</div>
+              {% if chat.gif %}
+                <img src="/gif/{{chat.gif}}">
+              {% else %}
+                <div>{{chat.chat}}</div>
+              {% endif %}
+            </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </fieldset>
+    <form action="/chat" id="chat-form" method="post" enctype="multipart/form-data">
+      <label for="gif">GIF 올리기</label>
+      <input type="file" id="gif" name="gif" accept="image/gif">
+      <input type="text" id="chat" name="chat">
+      <button type="submit">전송</button>
+    </form>
+  </div>
+  
+  <!-- 사용자 목록 영역 -->
+  <div id="user-list-section">
+    <h3>현재 접속자</h3>
+    <ul id="user-list"></ul>
+  </div>
+</div>
+
+<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  // 소켓 연결
+  const socket = io.connect('http://localhost:8005/chat', {
+    path: '/socket.io',
+  });
+
+  // 방 ID 추출
+  const roomId = new URL(location.href).pathname.split('/').at(-1);
+  const room = {
+    _id: '{{room._id}}',
+    owner: '{{room.owner}}'
+  };
+
+  // 입장
+  socket.emit('join', roomId);
+
+  // 나가기 버튼
+  document.querySelector('#exit-btn').addEventListener('click', function (e) {
+    e.preventDefault();
+    socket.emit('leaveRoom', roomId, (data) => {
+      window.location.href = '/';
     });
+  });
 
-    // 방 ID 추출
-    const roomId = new URL(location.href).pathname.split('/').at(-1);
-    const room = {
-      _id: '{{room._id}}',
-      owner: '{{room.owner}}'
-    };
+  // ========== 사용자 목록 업데이트 예시 ==========
+  // 서버에서 userList 이벤트로 { users: ['색상1', '색상2', ...] } 형태를 준다고 가정
+  socket.on('userList', (data) => {
+    // data.users = 예: ['#123456', '#abcdef']
+    const userList = document.querySelector('#user-list');
+    userList.innerHTML = ''; // 기존 목록 비움
 
-    socket.emit('join', new URL(location).pathname.split('/').at(-1));
+    data.users.forEach((userColor) => {
+      const li = document.createElement('li');
+      li.textContent = userColor; // 예: "#123456"
+      li.style.color = userColor; // 사용자 색으로 표시
+      userList.appendChild(li);
+    });
+  });
 
-    // "나가기" 버튼: leaveRoom 이벤트로 서버에 알린 뒤, 콜백 오면 메인 이동
-    document.querySelector('#exit-btn').addEventListener('click', function (e) {
-      e.preventDefault(); // a태그 기본 동작 중단
-      socket.emit('leaveRoom', roomId, (data) => {
-        // 서버에서 최종 처리(방 삭제/인원 감소) 후 콜백
-        console.log('서버 응답:', data);
-        // 방 삭제 여부와 상관없이 어쨌든 메인 화면으로 이동
-        window.location.href = '/';
+  // ========== 기존 이벤트들 ==========
+  socket.on('updateCount', (data) => {
+    if (data.roomId === room._id) {
+      document.querySelector('#room-title').textContent =
+        `GIF 채팅방 생성 (현재 인원: ${data.occupantCount}명)`;
+    }
+  });
+  socket.on('join', function (data) {
+    const div = document.createElement('div');
+    div.classList.add('system');
+    const chat = document.createElement('div');
+    chat.textContent = data.chat;
+    div.appendChild(chat);
+    document.querySelector('#chat-list').appendChild(div);
+  });
+  socket.on('exit', function (data) {
+    const div = document.createElement('div');
+    div.classList.add('system');
+    const chat = document.createElement('div');
+    chat.textContent = data.chat;
+    div.appendChild(chat);
+    document.querySelector('#chat-list').appendChild(div);
+  });
+  socket.on('chat', function (data) {
+    const div = document.createElement('div');
+    if (data.user === '{{user}}') {
+      div.classList.add('mine');
+    } else {
+      div.classList.add('other');
+    }
+    const name = document.createElement('div');
+    name.textContent = data.user;
+    div.appendChild(name);
+    if (data.chat) {
+      const chat = document.createElement('div');
+      chat.textContent = data.chat;
+      div.appendChild(chat);
+    } else {
+      const gif = document.createElement('img');
+      gif.src = '/gif/' + data.gif;
+      div.appendChild(gif);
+    }
+    div.style.color = data.user;
+    document.querySelector('#chat-list').appendChild(div);
+  });
+
+  // 메시지 전송
+  document.querySelector('#chat-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (e.target.chat.value) {
+      axios.post('/room/{{room._id}}/chat', {
+        chat: this.chat.value,
+      })
+      .then(() => {
+        e.target.chat.value = '';
+      })
+      .catch((err) => {
+        console.error(err);
       });
-    });
+    }
+  });
 
-    socket.on('updateCount', (data) => {
-        if (data.roomId === room._id) {
-          document.querySelector('#room-title').textContent = `GIF 채팅방 생성 (현재 인원: ${data.occupantCount}명)`;
-        }
-    });
-    socket.on('join', function (data) {
-      const div = document.createElement('div');
-      div.classList.add('system');
-      const chat = document.createElement('div');
-      chat.textContent = data.chat;
-      div.appendChild(chat);
-      document.querySelector('#chat-list').appendChild(div);
-    });
-    socket.on('exit', function (data) {
-      const div = document.createElement('div');
-      div.classList.add('system');
-      const chat = document.createElement('div');
-      chat.textContent = data.chat;
-      div.appendChild(chat);
-      document.querySelector('#chat-list').appendChild(div);
-    });
-    socket.on('chat', function (data) {
-      const div = document.createElement('div');
-      if (data.user === '{{user}}') {
-        div.classList.add('mine');
-      } else {
-        div.classList.add('other');
-      }
-      const name = document.createElement('div');
-      name.textContent = data.user;
-      div.appendChild(name);
-      if (data.chat) {
-        const chat = document.createElement('div');
-        chat.textContent = data.chat;
-        div.appendChild(chat);
-      } else {
-        const gif = document.createElement('img');
-        gif.src = '/gif/' + data.gif;
-        div.appendChild(gif);
-      }
-      div.style.color = data.user;
-      document.querySelector('#chat-list').appendChild(div);
-    });
-    document.querySelector('#chat-form').addEventListener('submit', function (e) {
-      e.preventDefault();
-      if (e.target.chat.value) {
-        axios.post('/room/{{room._id}}/chat', {
-          chat: this.chat.value,
-        })
-          .then(() => {
-            e.target.chat.value = '';
-          })
-          .catch((err) => {
-            console.error(err);
-          });
-      }
-    });
-    document.querySelector('#gif').addEventListener('change', function (e) {
-      console.log(e.target.files);
-      const formData = new FormData();
-      formData.append('gif', e.target.files[0]);
-      axios.post('/room/{{room._id}}/gif', formData)
-        .then(() => {
-          e.target.file = null;
-        })
-        .catch((err) => {
-          console.error(err);
-        });
-    });
-  </script>
+  // GIF 업로드
+  document.querySelector('#gif').addEventListener('change', function (e) {
+    const formData = new FormData();
+    formData.append('gif', e.target.files[0]);
+    axios.post('/room/{{room._id}}/gif', formData)
+      .then(() => {
+        e.target.file = null;
+      })
+      .catch((err) => {
+        console.error(err);
+      });
+  });
+</script>
 {% endblock %}

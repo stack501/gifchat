@@ -46,6 +46,8 @@ module.exports = (server, app, sessionMiddleware) => {
                 roomId,
                 occupantCount: userCount,
               });
+            
+            updateUserList(roomId);
         });
 
         // ============ leaveRoom 이벤트 추가 ============
@@ -67,7 +69,7 @@ module.exports = (server, app, sessionMiddleware) => {
                 done({ success: true });
             } else {
                 const systemLog = `${socket.request.session.color}님이 퇴장하셨습니다. 현재 인원: ${userCount}`;
-                
+
                 await createSystemChatLog(roomId, systemLog);
 
                 socket.to(roomId).emit('exit', {
@@ -77,6 +79,8 @@ module.exports = (server, app, sessionMiddleware) => {
 
                 chat.emit('updateCount', { roomId, occupantCount: userCount });
                 done({ success: false });
+
+                updateUserList(roomId);
             }
         });
 
@@ -91,5 +95,19 @@ module.exports = (server, app, sessionMiddleware) => {
                 console.log('방 제거 요청 성공');
             }
         });
+
+        function updateUserList(roomId) {
+            const currentRoom = chat.adapter.rooms.get(roomId);
+            if(!currentRoom) return;
+
+            const userColors = [];
+            for (const clientId of currentRoom) {
+                const clientSocket = chat.sockets.get(clientId);
+                const color = clientSocket.request.session.color;
+                userColors.push(color);
+            }
+            // 방에만 보내거나, 특정 네임스페이스 전체에 broadcast할 수 있음
+            chat.to(roomId).emit('userList', { users: userColors });
+        }
     });
 }
