@@ -1,5 +1,6 @@
 const Room = require('../schemas/room');
 const Chat = require('../schemas/chat');
+const Whisper = require('../schemas/whisper');
 const { removeRoom: removeRoomService } = require('../services');
 
 exports.renderMain = async (req, res, next) => {
@@ -81,6 +82,21 @@ exports.enterRoom = async (req, res, next) => {
 //         next(error);
 //     }
 // };
+exports.sendWhisper = async (req, res, next) => {
+    try {
+        const whisper = await Whisper.create({
+            room: req.params.id,
+            toUser: req.body.toUser,
+            fromUser: req.session.color,
+            chat: req.body.chat,
+        });
+        req.app.get('io').of('/chat').to(req.params.id).emit('whisper', whisper);
+        res.send('ok');
+    } catch (error) {
+        console.error(error);
+        next(error);
+    }
+}
 exports.sendChat = async (req, res, next) => {
     try {
         const chat = await Chat.create({
