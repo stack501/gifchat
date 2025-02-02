@@ -331,7 +331,7 @@
       div.appendChild(chat);
     } else {
       const gif = document.createElement('img');
-      gif.src = '/gif/' + data.gif;
+      gif.src = '/gif/' + data.room + '/' + data.gif;
       div.appendChild(gif);
     }
     div.style.color = getFromUser;
