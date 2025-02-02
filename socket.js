@@ -4,6 +4,7 @@ const { createSystemChatLog } = require('./services');
 
 module.exports = (server, app, sessionMiddleware) => {
     const io = SocketIO(server, { path: '/socket.io' });
+    const userMap = {}; 
 
     app.set('io', io);
     const room = io.of('/room');
@@ -19,6 +20,10 @@ module.exports = (server, app, sessionMiddleware) => {
     });
     chat.on('connection', (socket) => {
         console.log('chat 네임스페이스 접속');
+
+        const userColor = socket.request.session.color;
+        userMap[userColor] = socket.id;
+
         const { referer } = socket.request.headers;
         console.log(referer);
         const roomId = new URL(referer).pathname.split('/').at(-1);
@@ -86,6 +91,7 @@ module.exports = (server, app, sessionMiddleware) => {
 
         socket.on('disconnect', async () => {
             console.log('chat 네임스페이스 접속 해제');
+            delete userMap[userColor];
             
             const currentRoom = chat.adapter.rooms.get(roomId);
             const userCount = currentRoom?.size || 0;
@@ -93,6 +99,29 @@ module.exports = (server, app, sessionMiddleware) => {
                 await removeRoom(roomId);
                 room.emit('removeRoom', roomId);
                 console.log('방 제거 요청 성공');
+            }
+        });
+
+        socket.on('whisper', (data) => {
+            const fromColor = socket.request.session.color;
+            const targetSocketId = userMap[data.targetColor];
+
+            if(targetSocketId) {
+                //특정 소켓만 지정해 이벤트 전송
+                socket.to(targetSocketId).emit('whisper', {
+                    fromColor,
+                    message: data.message,
+                });
+                //보낸 사람 본인에게도 표시
+                socket.emit('whisper', {
+                    fromColor: '나',
+                    message: data.message,
+                });
+            } else {
+                socket.emit('whisper', {
+                    fromColor: 'system',
+                    message: '대상을 찾을 수 없습니다.',
+                });
             }
         });
 
