@@ -140,7 +140,25 @@ exports.sendGif = async (req, res, next) => {
 
 exports.kickUser = async (req, res, next) => {
     try {
+        const currentUser = req.session.color; // 현재 로그인한 사용자 정보 (예: 아이디 혹은 색상)
+        const roomId = req.params.id;
         const targetSocketId = userMap[req.body.kickUserColor];
+
+        // 방 정보를 조회 (예: DB에서 roomId로 방 정보를 가져온다)
+        const room = await Room.findById(roomId);
+
+        // 현재 사용자가 방장이 아니라면 거부
+        if (room.owner !== currentUser) {
+            console.error('권한이 없습니다.');
+            return res.status(403).send('권한이 없습니다.');
+        }
+        
+        // 강퇴 대상 사용자 처리
+        if (!targetSocketId) {
+            console.error('해당 사용자를 찾을 수 없습니다.');
+            return res.status(404).send('해당 사용자를 찾을 수 없습니다.');
+        }
+
         req.app.get('io')
             .of('/chat')
             .to(targetSocketId)

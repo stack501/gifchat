@@ -107,6 +107,7 @@
     _id: '{{room._id}}',
     owner: '{{room.owner}}'
   };
+  const currentUser = '{{user}}';
 
   socket.emit('join', roomId);
 
@@ -164,6 +165,12 @@
   const whisperMenu = document.querySelector('#whisper-menu');
   const delegateMenu = document.querySelector('#delegate-menu');
   const kickMenu = document.querySelector('#kick-menu');
+
+  // 현재 사용자가 방장이 아니라면 '방장 위임'과 '강퇴' 메뉴 숨김
+  if (room.owner !== currentUser) {
+    delegateMenu.style.display = 'none';
+    kickMenu.style.display = 'none';
+  }
 
   function updateUser(data) {
     userList.innerHTML = '';
