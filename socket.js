@@ -57,7 +57,7 @@ function socketSetup(server, app, sessionMiddleware) {
         });
 
         // ============ leaveRoom 이벤트 추가 ============
-        socket.on('leaveRoom', async (roomId, done) => {
+        socket.on('leaveRoom', async (roomId, message, done) => {
             // 1) 소켓이 해당 방을 떠남
             socket.leave(roomId);
     
@@ -74,7 +74,8 @@ function socketSetup(server, app, sessionMiddleware) {
                 // 클라이언트 콜백에 "success: true" 전달
                 done({ success: true });
             } else {
-                const systemLog = `${socket.request.session.color}님이 퇴장하셨습니다. 현재 인원: ${userCount}`;
+                const resultMessage = message ?? '퇴장하셨습니다';
+                const systemLog = `${socket.request.session.color}님이 ${resultMessage}. 현재 인원: ${userCount}`;
 
                 await createSystemChatLog(roomId, systemLog);
 

@@ -1,5 +1,10 @@
 const express = require('express');
-const { renderMain, renderRoom, createRoom, enterRoom, removeRoom, sendChat, sendGif, sendWhisper } = require('../controllers');
+const { renderMain, renderRoom,
+        createRoom, enterRoom,
+        removeRoom, sendChat,
+        sendGif, sendWhisper,
+        kickUser,
+     } = require('../controllers');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -13,6 +18,7 @@ router.get('/room/:id', enterRoom);
 // router.delete('/room/:id', removeRoom);
 router.post('/room/:id/whisper', sendWhisper);
 router.post('/room/:id/chat', sendChat);
+router.post('/room/:id/kickUser', kickUser);
 try {
     fs.readdirSync('uploads');
 } catch (error) {

@@ -94,7 +94,7 @@
 <script src="/socket.io/socket.io.js"></script>
 <script>
   // ----------------------
-  // 1) 소켓 연결 & 방 입장
+  // 소켓 연결 & 방 입장
   // ----------------------
   const socket = io.connect('http://localhost:8005/chat', {
     path: '/socket.io',
@@ -111,7 +111,7 @@
   socket.emit('join', roomId);
 
   // ----------------------
-  // 2) 귓속말 모드 관련 전역 변수
+  // 귓속말 모드 관련 전역 변수
   // ----------------------
   let whisperTarget = null;  // 현재 귓속말 타겟 (사용자 color)
   const sendBtn = document.querySelector('#send-btn');
@@ -134,17 +134,30 @@
   });
 
   // ----------------------
-  // 3) “나가기” 버튼
+  // 강퇴 관련 기능
+  // ----------------------
+  async function setKickMode(targetColor) {
+    try {
+      await axios.post('/room/{{room._id}}/kickUser', {
+        kickUserColor: targetColor,
+      })
+    } catch (error) {
+      console.error(error)
+    }
+  }
+
+  // ----------------------
+  // “나가기” 버튼
   // ----------------------
   document.querySelector('#exit-btn').addEventListener('click', function (e) {
     e.preventDefault();
-    socket.emit('leaveRoom', roomId, (data) => {
+    socket.emit('leaveRoom', roomId, null, (data) => {
       window.location.href = '/';
     });
   });
 
   // ----------------------
-  // 4) 사용자 목록 표시 & 사용자 클릭 시 액션 패널
+  // 사용자 목록 표시 & 사용자 클릭 시 액션 패널
   // ----------------------
   const userList = document.querySelector('#user-list');
   const userActionPanel = document.querySelector('#user-action-panel');
@@ -152,8 +165,7 @@
   const delegateMenu = document.querySelector('#delegate-menu');
   const kickMenu = document.querySelector('#kick-menu');
 
-  // 서버에서 userList 이벤트로 { users: [...] } 받음
-  socket.on('userList', (data) => {
+  function updateUser(data) {
     userList.innerHTML = '';
     data.users.forEach((userColor) => {
       const li = document.createElement('li');
@@ -176,15 +188,15 @@
         }
         showUserActionPanel(e.pageX, e.pageY, userColor);
       });
+
       userList.appendChild(li);
     });
-  });
+  }
 
-  // (2) 패널 내부 클릭
+  // 패널 내부 클릭
   userActionPanel.addEventListener('click', (e) => {
     + e.stopPropagation(); 
   });
-
 
   // 패널 표시 함수
   function showUserActionPanel(x, y, targetColor) {
@@ -208,13 +220,14 @@
     alert('방장 위임 기능은 아직 구현되지 않았습니다.');
     hideUserActionPanel();
   });
-  kickMenu.addEventListener('click', () => {
-    alert('강퇴 기능은 아직 구현되지 않았습니다.');
+  kickMenu.addEventListener('click', async () => {
+    const targetColor = userActionPanel.dataset.targetColor;
     hideUserActionPanel();
+    await setKickMode(targetColor);
   });
 
   // ----------------------
-  // 5) 메시지 전송 (일반 vs 귓속말)
+  // 메시지 전송 (일반 vs 귓속말)
   // ----------------------
   document.querySelector('#chat-form').addEventListener('submit', function (e) {
     e.preventDefault();
@@ -268,8 +281,14 @@
   });
 
   // -----------------------
-  // 6) 기타 소켓 이벤트 수신
+  // 소켓 이벤트 수신
   // -----------------------
+
+  // 서버에서 userList 이벤트로 { users: [...] } 받음
+  socket.on('userList', (data) => {
+    updateUser(data);
+  });
+
   socket.on('updateCount', (data) => {
     if (data.roomId === room._id) {
       document.querySelector('#room-title').textContent =
@@ -302,6 +321,13 @@
   // 귓속말 수신
   socket.on('whisper', function (data) {
     renderChatMessage(data, true);
+  });
+
+  //강퇴
+  socket.on('kickUser', function (data) {
+    socket.emit('leaveRoom', roomId, data.message, (data) => {
+      window.location.href = '/';
+    });
   });
 
   // -----------------------
@@ -339,7 +365,7 @@
   }
 
   // -----------------------
-  // 8) (선택) - 패널 외부 클릭 시 패널 숨기기
+  // 패널 외부 클릭 시 패널 숨기기
   // -----------------------
   document.addEventListener('click', (ev) => {
     // user-action-panel 바깥을 클릭하면 숨기기

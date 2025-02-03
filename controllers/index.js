@@ -137,3 +137,25 @@ exports.sendGif = async (req, res, next) => {
         next(error);
     }
 }
+
+exports.kickUser = async (req, res, next) => {
+    try {
+        const targetSocketId = userMap[req.body.kickUserColor];
+        req.app.get('io')
+            .of('/chat')
+            .to(targetSocketId)
+            .emit('kickUser', { message: '강퇴당하셨습니다' });
+
+        delete userMap[req.body.kickUserColor];
+
+        // 업데이트된 사용자 목록을 객체의 키 배열로 만듭니다.
+        const updatedUsers = Object.keys(userMap);
+        // 전체 네임스페이스 또는 특정 방에 사용자 목록 업데이트를 broadcast 합니다.
+        req.app.get('io')
+            .of('/chat')
+            .emit('userList', { users: updatedUsers });
+    } catch (error) {
+        console.error(error);
+        next(error);
+    }
+}
