@@ -60,7 +60,8 @@ function socketSetup(server, app, sessionMiddleware) {
         socket.on('leaveRoom', async (roomId, message, done) => {
             // 1) 소켓이 해당 방을 떠남
             socket.leave(roomId);
-    
+            delete userMap[userColor];
+
             // 2) 남은 인원 파악
             const userCount = chat.adapter.rooms.get(roomId)?.size || 0;
             console.log(`방 ${roomId} 인원: ${userCount}`);
@@ -74,6 +75,8 @@ function socketSetup(server, app, sessionMiddleware) {
                 // 클라이언트 콜백에 "success: true" 전달
                 done({ success: true });
             } else {
+                const remainingUsers = Object.keys(userMap);
+                const firstUser = remainingUsers[0];
                 const resultMessage = message ?? '퇴장하셨습니다';
                 const systemLog = `${socket.request.session.color}님이 ${resultMessage}. 현재 인원: ${userCount}`;
 
@@ -82,6 +85,7 @@ function socketSetup(server, app, sessionMiddleware) {
                 socket.to(roomId).emit('exit', {
                     user: 'system',
                     chat: systemLog,
+                    targetColor: firstUser,
                 });
 
                 chat.emit('updateCount', { roomId, occupantCount: userCount });
@@ -93,7 +97,6 @@ function socketSetup(server, app, sessionMiddleware) {
 
         socket.on('disconnect', async () => {
             console.log('chat 네임스페이스 접속 해제');
-            delete userMap[userColor];
             
             const currentRoom = chat.adapter.rooms.get(roomId);
             const userCount = currentRoom?.size || 0;
