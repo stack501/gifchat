@@ -2,9 +2,10 @@ const SocketIO = require('socket.io');
 const { removeRoom } = require('./services');
 const { createSystemChatLog } = require('./services');
 
-module.exports = (server, app, sessionMiddleware) => {
+const userMap = {}; 
+
+function socketSetup(server, app, sessionMiddleware) {
     const io = SocketIO(server, { path: '/socket.io' });
-    // const userMap = {}; 
 
     app.set('io', io);
     const room = io.of('/room');
@@ -22,7 +23,7 @@ module.exports = (server, app, sessionMiddleware) => {
         console.log('chat 네임스페이스 접속');
 
         const userColor = socket.request.session.color;
-        // userMap[userColor] = socket.id;
+        userMap[userColor] = socket.id;
 
         const { referer } = socket.request.headers;
         console.log(referer);
@@ -91,7 +92,7 @@ module.exports = (server, app, sessionMiddleware) => {
 
         socket.on('disconnect', async () => {
             console.log('chat 네임스페이스 접속 해제');
-            // delete userMap[userColor];
+            delete userMap[userColor];
             
             const currentRoom = chat.adapter.rooms.get(roomId);
             const userCount = currentRoom?.size || 0;
@@ -140,3 +141,8 @@ module.exports = (server, app, sessionMiddleware) => {
         }
     });
 }
+
+module.exports = {
+    userMap,
+    socketSetup
+  };

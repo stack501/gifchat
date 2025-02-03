@@ -10,7 +10,7 @@ const ColorHash = require('color-hash').default;
 
 dotenv.config();
 
-const websocket = require('./socket');
+const { socketSetup } = require('./socket');
 const indexRouter = require('./routes');
 
 const app = express();
@@ -66,4 +66,4 @@ const server = app.listen(app.get('port'), () => {
   console.log(app.get('port'), '번 포트에서 대기중');
 });
 
-websocket(server, app, sessionMiddleware);
+socketSetup(server, app, sessionMiddleware);

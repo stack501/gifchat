@@ -2,6 +2,7 @@ const Room = require('../schemas/room');
 const Chat = require('../schemas/chat');
 const Whisper = require('../schemas/whisper');
 const { removeRoom: removeRoomService } = require('../services');
+const { userMap } = require('../socket');
 
 exports.renderMain = async (req, res, next) => {
     try {
@@ -90,7 +91,18 @@ exports.sendWhisper = async (req, res, next) => {
             fromUser: req.session.color,
             chat: req.body.chat,
         });
-        req.app.get('io').of('/chat').to(req.params.id).emit('whisper', whisper);
+
+        const targetSocketId = userMap[req.body.toUser];
+        const senderSocketId = userMap[req.session.color];
+        req.app.get('io')
+            .of('/chat')
+            .to(targetSocketId)
+            .emit('whisper', whisper);
+
+        req.app.get('io')
+            .of('/chat')
+            .to(senderSocketId)
+            .emit('whisper', whisper);
         res.send('ok');
     } catch (error) {
         console.error(error);
