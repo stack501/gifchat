@@ -3,7 +3,7 @@ const { renderMain, renderRoom,
         createRoom, enterRoom,
         removeRoom, sendChat,
         sendGif, sendWhisper,
-        kickUser,
+        kickUser, delegateUser,
      } = require('../controllers');
 const multer = require('multer');
 const path = require('path');
@@ -19,6 +19,7 @@ router.get('/room/:id', enterRoom);
 router.post('/room/:id/whisper', sendWhisper);
 router.post('/room/:id/chat', sendChat);
 router.post('/room/:id/kickUser', kickUser);
+router.post('/room/:id/delegateUser', delegateUser);
 try {
     fs.readdirSync('uploads');
 } catch (error) {

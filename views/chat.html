@@ -148,6 +148,19 @@
   }
 
   // ----------------------
+  // 방장 위임 관련 기능
+  // ----------------------
+  async function setDelegateMode(targetColor) {
+    try {
+      await axios.post('/room/{{room._id}}/delegateUser', {
+        delegateUserColor: targetColor,
+      })
+    } catch (error) {
+      console.error(error)
+    }
+  }
+
+  // ----------------------
   // “나가기” 버튼
   // ----------------------
   document.querySelector('#exit-btn').addEventListener('click', function (e) {
@@ -179,9 +192,17 @@
       li.style.color = userColor;
       // 만약 userColor === '{{user}}'라면, (나) 표시 추가
       if (userColor === '{{user}}') {
-        li.textContent = `${userColor} (나)`;
+        if (userColor === room.owner) {
+          li.textContent = `${userColor}[방장] (나)`;
+        } else {
+          li.textContent = `${userColor} (나)`;
+        }
       } else {
-        li.textContent = userColor;
+        if (userColor === room.owner) {
+          li.textContent = `${userColor}[방장]`;
+        } else {
+          li.textContent = userColor;
+        }
       }
 
       // 클릭 -> 작은 패널 표시
@@ -222,11 +243,13 @@
     hideUserActionPanel();
     setWhisperMode(targetColor);
   });
-  // '방장 위임', '강퇴'는 지금 구현 생략
-  delegateMenu.addEventListener('click', () => {
-    alert('방장 위임 기능은 아직 구현되지 않았습니다.');
+  //방장 위임
+  delegateMenu.addEventListener('click', async () => {
+    const targetColor = userActionPanel.dataset.targetColor;
     hideUserActionPanel();
+    await setDelegateMode(targetColor);
   });
+  //강퇴
   kickMenu.addEventListener('click', async () => {
     const targetColor = userActionPanel.dataset.targetColor;
     hideUserActionPanel();
@@ -335,6 +358,31 @@
     socket.emit('leaveRoom', roomId, data.message, (data) => {
       window.location.href = '/';
     });
+  });
+
+  //방장 위임
+  socket.on('delegateUser', (data) => {
+    room.owner = data.targetColor;
+
+    const div = document.createElement('div');
+    div.classList.add('system');
+    const chat = document.createElement('div');
+    chat.textContent = data.systemLog;
+    div.appendChild(chat);
+    document.querySelector('#chat-list').appendChild(div);
+
+    // 변경된 owner 정보를 반영하여 메뉴의 보임/숨김 상태 업데이트
+    if (room.owner === currentUser) {
+      // 현재 사용자가 새 방장이면 '방장 위임', '강퇴' 메뉴 보이기
+      delegateMenu.style.display = 'block';
+      kickMenu.style.display = 'block';
+    } else {
+      // 방장이 아니라면 해당 메뉴 숨김
+      delegateMenu.style.display = 'none';
+      kickMenu.style.display = 'none';
+    }
+
+    updateUser(data)
   });
 
   // -----------------------

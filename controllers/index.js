@@ -177,3 +177,47 @@ exports.kickUser = async (req, res, next) => {
         next(error);
     }
 }
+
+exports.delegateUser = async (req, res, next) => {
+    try {
+        //위임 대상이 있으면 해당 사용자에 방장 위임
+        const targetColor = req.body.delegateUserColor;
+        const targetSocketId = userMap[targetColor];
+        const roomId = req.params.id;
+
+        // 방 정보를 조회 (예: DB에서 roomId로 방 정보를 가져온다)
+        const room = await Room.findById(roomId);
+
+        // 선택된 위임 대상이 이미 방장인 경우
+        if (room.owner === targetColor) {
+            return;
+        }
+        
+        //위임 대상이 없으면 진행되지 않도록
+        if (!targetSocketId) {
+            console.error('해당 사용자를 찾을 수 없습니다.');
+            return res.status(404).send('해당 사용자를 찾을 수 없습니다.');
+        }
+
+        // 새로운 방장(예: 위임 대상)으로 owner 값을 변경합니다.
+        room.owner = targetColor;
+
+        // 변경된 room 정보를 DB에 저장합니다.
+        await room.save();
+
+        const systemLog = `${targetColor}님이 방장으로 위임되셨습니다.`;
+
+        // 업데이트된 사용자 목록을 객체의 키 배열로 만듭니다.
+        const updatedUsers = Object.keys(userMap);
+        req.app.get('io')
+            .of('/chat')
+            .emit('delegateUser', { 
+                systemLog,
+                targetColor,
+                users: updatedUsers,
+             });
+    } catch (error) {
+        console.error(error);
+        next(error);
+    }
+}
