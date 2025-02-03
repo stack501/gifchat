@@ -171,6 +171,7 @@ exports.kickUser = async (req, res, next) => {
         // 전체 네임스페이스 또는 특정 방에 사용자 목록 업데이트를 broadcast 합니다.
         req.app.get('io')
             .of('/chat')
+            .to(roomId)
             .emit('userList', { users: updatedUsers });
     } catch (error) {
         console.error(error);
@@ -211,6 +212,7 @@ exports.delegateUser = async (req, res, next) => {
         const updatedUsers = Object.keys(userMap);
         req.app.get('io')
             .of('/chat')
+            .to(roomId)
             .emit('delegateUser', { 
                 systemLog,
                 targetColor,
